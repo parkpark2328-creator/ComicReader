@@ -1,7 +1,9 @@
+
 package com.example.comicreader.data
 
 import android.content.Context
 import androidx.room.*
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
@@ -17,19 +19,35 @@ data class Comic(
     val previousUrl: String? = null,
     val nextUrl: String? = null
 ) {
-    fun pages(): List<String> = imageUrls.split('\n').filter { it.startsWith("https://") }
+    fun pages(): List<String> =
+        imageUrls.split('\n').filter { it.startsWith("https://") }
 }
 
 @Dao
 interface ComicDao {
-    @Query("SELECT * FROM comics ORDER BY updatedAt DESC") fun all(): Flow<List<Comic>>
-    @Query("SELECT * FROM comics WHERE liked = 1 ORDER BY updatedAt DESC") fun liked(): Flow<List<Comic>>
-    @Query("SELECT * FROM comics WHERE url = :url LIMIT 1") suspend fun get(url: String): Comic?
-    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun put(comic: Comic)
-    @Query("UPDATE comics SET liked = :liked WHERE url = :url") suspend fun setLiked(url: String, liked: Boolean)
-    @Query("UPDATE comics SET updatedAt = :time WHERE url = :url") suspend fun markOpened(url: String, time: Long)
-    @Query("UPDATE comics SET lastPage = :page, updatedAt = :time WHERE url = :url") suspend fun savePage(url: String, page: Int, time: Long)
-    @Query("DELETE FROM comics WHERE url = :url") suspend fun delete(url: String)
+    @Query("SELECT * FROM comics ORDER BY updatedAt DESC")
+    fun all(): Flow<List<Comic>>
+
+    @Query("SELECT * FROM comics WHERE liked = 1 ORDER BY updatedAt DESC")
+    fun liked(): Flow<List<Comic>>
+
+    @Query("SELECT * FROM comics WHERE url = :url LIMIT 1")
+    suspend fun get(url: String): Comic?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun put(comic: Comic)
+
+    @Query("UPDATE comics SET liked = :liked WHERE url = :url")
+    suspend fun setLiked(url: String, liked: Boolean)
+
+    @Query("UPDATE comics SET updatedAt = :time WHERE url = :url")
+    suspend fun markOpened(url: String, time: Long)
+
+    @Query("UPDATE comics SET lastPage = :page, updatedAt = :time WHERE url = :url")
+    suspend fun savePage(url: String, page: Int, time: Long)
+
+    @Query("DELETE FROM comics WHERE url = :url")
+    suspend fun delete(url: String)
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -39,15 +57,29 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
-@Database(entities = [Comic::class], version = 2, exportSchema = false)
+@Database(
+    entities = [Comic::class],
+    version = 2,
+    exportSchema = false
+)
 abstract class ComicDatabase : RoomDatabase() {
+
     abstract fun comicDao(): ComicDao
+
     companion object {
-        @Volatile private var INSTANCE: ComicDatabase? = null
-        fun get(context: Context): ComicDatabase = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(context.applicationContext, ComicDatabase::class.java, "comic-reader.db")
-                .addMigrations(MIGRATION_1_2)
-                .build().also { INSTANCE = it }
-        }
+        @Volatile
+        private var INSTANCE: ComicDatabase? = null
+
+        fun get(context: Context): ComicDatabase =
+            INSTANCE ?: synchronized(this) {
+                INSTANCE ?: Room.databaseBuilder(
+                    context.applicationContext,
+                    ComicDatabase::class.java,
+                    "comic-reader.db"
+                )
+                    .addMigrations(MIGRATION_1_2)
+                    .build()
+                    .also { INSTANCE = it }
+            }
     }
 }
